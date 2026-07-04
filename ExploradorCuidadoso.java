@@ -1,3 +1,5 @@
+import java.util.concurrent.Semaphore;
+
 /**
  * Explorador cuidadoso que executa tarefas com precisão e atenção aos detalhes.
  * Implementa Runnable para execução em thread separada.
@@ -7,49 +9,61 @@ public class ExploradorCuidadoso extends Explorador implements Runnable {
      * Construtor do explorador cuidadoso.
      *
      * @param nome nome do explorador
+     * @param nivel nível do explorador
      * @param prioridade prioridade da thread
      * @param tarefa tarefa atribuída ao explorador
+     * @param semaphore semáforo compartilhado entre as threads
      */
-    public ExploradorCuidadoso(String nome, int prioridade, String tarefa) {
-        super(nome, "Cuidadoso", prioridade, tarefa);
+    public ExploradorCuidadoso(String nome, int nivel, int prioridade, Tarefa tarefa, Semaphore semaphore) {
+        super(nome, "Cuidadoso", nivel, prioridade, tarefa, semaphore);
     }
 
     /**
      * Implementação específica da execução de tarefa para exploradores cuidadosos.
      * Exploradores cuidadosos executam tarefas com mais cautela e precisão.
-     * @throws TarefaInvalidaException Se a tarefa for nula ou vazia
      */
     @Override
-    public void executarTarefa() throws TarefaInvalidaException {
-        if (getTarefa() == null || getTarefa().isBlank()) {
-            throw new TarefaInvalidaException("Tarefa inválida para " + getNome());
-        }
-
+    public void executarTarefa() {
         exibirStatus();
-        System.out.println("Status: Iniciando exploração com cautela...");
-        System.out.println("Status: " + getNome() + " está analisando cada detalhe da tarefa: " + getTarefa());
+        System.out.println("Status: Realizando tarefa com cautela!");
+        System.out.println(
+            "Ação: " + getNome() + " está analisando cuidadosamente a área de " +
+            getTarefa().getLocal() + " para " + getTarefa().getDescricao() + "."
+        );
 
         try {
-            Thread.sleep(900L);
+            Thread.sleep(1000L);
         } catch (InterruptedException exception) {
             Thread.currentThread().interrupt();
             System.out.println("Aviso: A exploração cuidadosa de " + getNome() + " foi interrompida.");
             return;
         }
 
-        System.out.println("Status: " + getNome() + " concluiu a exploração com precisão.\n");
+        System.out.println("Resultado: " + getNome() + " concluiu a missão com precisão.\n");
     }
 
     /**
      * Método run() executado quando a thread é iniciada.
-     * Trata exceções e chama executarTarefa().
+     * Controla o acesso ao recurso compartilhado com um semáforo de duas permissões.
      */
     @Override
     public void run() {
+        boolean permissaoAdquirida = false;
+
         try {
+            System.out.println(getNome() + " aguardando permissão do semáforo...");
+            getSemaphore().acquire();
+            permissaoAdquirida = true;
+            System.out.println(getNome() + " recebeu permissão e iniciou a missão.");
             executarTarefa();
-        } catch (TarefaInvalidaException exception) {
-            System.out.println("Erro: " + exception.getMessage() + "\n");
+        } catch (InterruptedException exception) {
+            Thread.currentThread().interrupt();
+            System.out.println("Aviso: " + getNome() + " foi interrompido antes de concluir a missão.");
+        } finally {
+            if (permissaoAdquirida) {
+                System.out.println(getNome() + " liberou a permissão do semáforo.");
+                getSemaphore().release();
+            }
         }
     }
 }
