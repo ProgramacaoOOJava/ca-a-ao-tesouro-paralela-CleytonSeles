@@ -1,104 +1,102 @@
 import java.util.ArrayList;
-import java.util.concurrent.Semaphore;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ForkJoinPool;
+import java.util.concurrent.Future;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Classe principal que simula a Caça ao Tesouro Paralela.
- * Demonstra o uso de threads, prioridades, daemon, tarefas imutáveis e semáforo compartilhado.
+ * Demonstra o uso de ExecutorService, Callable, Future, ScheduledExecutorService e Fork/Join.
  */
 public class CacaAoTesouroParalela {
 
     public static void main(String[] args) {
-        System.out.println("=== CAÇA AO TESOURO PARALELA - NÍVEL AVENTUREIRO ===");
-        System.out.println("Exploradores em missão cooperativa com controle de acesso por semáforo.\n");
+        System.out.println("=== CAÇA AO TESOURO PARALELA - NÍVEL MESTRE ===");
+        System.out.println("Missões paralelas com ExecutorService, Future e consolidação com Fork/Join.\n");
 
-        // Semáforo com duas permissões para limitar a duas execuções simultâneas.
-        Semaphore semaphore = new Semaphore(2);
+        // Missões imutáveis compartilhadas pelos exploradores.
+        Missao missaoCavernas = new Missao("Mapear cavernas", "Caverna de Cristal", 7);
+        Missao missaoArtefatos = new Missao("Recuperar artefatos", "Templo Submerso", 8);
+        Missao missaoTrilhas = new Missao("Rastrear trilhas antigas", "Floresta Nebulosa", 6);
+        Missao missaoReliquias = new Missao("Saquear relíquias protegidas", "Ruínas Antigas", 9);
 
-        // Lista para gerenciar as threads dos exploradores.
-        ArrayList<Thread> threads = new ArrayList<>();
+        // Lista polimórfica com pelo menos quatro exploradores.
+        ArrayList<Explorador> exploradores = new ArrayList<>();
+        exploradores.add(new Rastreador("Lina", 5, 80, missaoCavernas));
+        exploradores.add(new Saqueador("Drogan", 6, 90, missaoArtefatos));
+        exploradores.add(new Rastreador("Kael", 4, 75, missaoTrilhas));
+        exploradores.add(new Saqueador("Mira", 5, 85, missaoReliquias));
 
-        // Criação das quatro tarefas imutáveis compartilhadas pelas threads.
-        Tarefa tarefaCaverna = new Tarefa("Mapear a caverna", "Caverna de Cristal", 7);
-        Tarefa tarefaRuinas = new Tarefa("Explorar as ruínas", "Ruínas Antigas", 6);
-        Tarefa tarefaFloresta = new Tarefa("Catalogar trilhas", "Floresta Nebulosa", 5);
-        Tarefa tarefaTemplo = new Tarefa("Recuperar artefatos", "Templo Submerso", 8);
+        // Executor com duas threads para processar as missões em paralelo.
+        ExecutorService executorService = Executors.newFixedThreadPool(2);
 
-        // Criação de dois exploradores rápidos e dois cuidadosos.
-        ExploradorRapido alice = new ExploradorRapido("Alice", 5, Thread.MAX_PRIORITY, tarefaCaverna, semaphore);
-        ExploradorRapido clara = new ExploradorRapido("Clara", 4, 8, tarefaRuinas, semaphore);
-        ExploradorCuidadoso bob = new ExploradorCuidadoso("Bob", 4, 5, tarefaFloresta, semaphore);
-        ExploradorCuidadoso diana = new ExploradorCuidadoso("Diana", 6, Thread.MIN_PRIORITY, tarefaTemplo, semaphore);
+        // Executor agendado para acompanhar o andamento das missões.
+        ScheduledExecutorService monitorExecutor = Executors.newSingleThreadScheduledExecutor();
 
-        // Encapsulando exploradores em threads.
-        Thread threadAlice = new Thread(alice, alice.getNome());
-        Thread threadClara = new Thread(clara, clara.getNome());
-        Thread threadBob = new Thread(bob, bob.getNome());
-        Thread threadDiana = new Thread(diana, diana.getNome());
+        // Lista para armazenar os resultados assíncronos das missões.
+        ArrayList<Future<Double>> futuros = new ArrayList<>();
 
-        // Configurando prioridades das threads.
-        threadAlice.setPriority(alice.getPrioridade());
-        threadClara.setPriority(clara.getPrioridade());
-        threadBob.setPriority(bob.getPrioridade());
-        threadDiana.setPriority(diana.getPrioridade());
-
-        // Uma thread daemon representa uma tarefa de apoio que não bloqueia o encerramento do programa.
-        threadDiana.setDaemon(true);
-
-        // Adicionando as threads à lista de gerenciamento.
-        threads.add(threadAlice);
-        threads.add(threadClara);
-        threads.add(threadBob);
-        threads.add(threadDiana);
-
-        // Exibindo informações das threads antes da execução.
-        System.out.println("\n=== INFORMAÇÕES DAS THREADS ===");
-        for (Thread thread : threads) {
-            System.out.println("Thread: " + thread.getName());
-            System.out.println("Prioridade real: " + thread.getPriority());
-            System.out.println("É daemon? " + thread.isDaemon());
-            System.out.println("Estado inicial: " + thread.getState() + "\n");
+        System.out.println("=== EXPLORADORES CADASTRADOS ===");
+        for (Explorador explorador : exploradores) {
+            explorador.exibirStatus();
+            System.out.println();
         }
 
-        // Iniciando a execução paralela dos exploradores.
-        System.out.println("\n=== INICIANDO MISSÕES ===");
-        for (Thread thread : threads) {
-            thread.start();
+        System.out.println("=== SUBMETENDO MISSÕES AO EXECUTOR ===");
+        for (Explorador explorador : exploradores) {
+            Future<Double> futuro = executorService.submit(explorador::executarMissao);
+            futuros.add(futuro);
         }
 
-        // Pausa breve para observar a mudança de estados após o start().
-        try {
-            Thread.sleep(200L);
-        } catch (InterruptedException exception) {
-            Thread.currentThread().interrupt();
-            System.out.println("Aviso: A thread principal foi interrompida ao observar os estados.");
-        }
+        monitorExecutor.scheduleAtFixedRate(() -> {
+            int concluidas = 0;
 
-        System.out.println("\n=== ESTADOS DURANTE A EXECUÇÃO ===");
-        for (Thread thread : threads) {
-            System.out.println("Thread " + thread.getName() + " em estado: " + thread.getState());
-        }
-
-        // A thread principal aguarda apenas as threads de usuário.
-        System.out.println("\n=== AGUARDANDO CONCLUSÃO DOS EXPLORADORES PRINCIPAIS ===");
-        for (Thread thread : threads) {
-            if (!thread.isDaemon()) {
-                try {
-                    thread.join();
-                } catch (InterruptedException exception) {
-                    Thread.currentThread().interrupt();
-                    System.out.println("Aviso: A thread principal foi interrompida durante o join de " + thread.getName() + ".");
+            for (Future<Double> futuro : futuros) {
+                if (futuro.isDone()) {
+                    concluidas++;
                 }
+            }
+
+            System.out.println("Monitor: " + concluidas + " de " + futuros.size() + " missões concluídas.");
+        }, 0, 400, TimeUnit.MILLISECONDS);
+
+        // Coleta dos pontos obtidos por cada explorador.
+        double[] pontos = new double[exploradores.size()];
+
+        for (int indice = 0; indice < futuros.size(); indice++) {
+            try {
+                double pontosObtidos = futuros.get(indice).get();
+                pontos[indice] = pontosObtidos;
+
+                System.out.println(
+                    "Explorador: " + exploradores.get(indice).getNome() +
+                    " | Especialidade: " + exploradores.get(indice).getEspecialidade() +
+                    " | Missão: " + exploradores.get(indice).getMissao().getDescricao() +
+                    " | Pontos obtidos: " + pontosObtidos
+                );
+            } catch (InterruptedException exception) {
+                Thread.currentThread().interrupt();
+                System.out.println("Aviso: A thread principal foi interrompida ao aguardar os resultados.");
+                break;
+            } catch (ExecutionException exception) {
+                System.out.println("Erro ao obter o resultado da missão: " + exception.getCause().getMessage());
             }
         }
 
-        // Verificando o estado final das threads após a sincronização.
-        System.out.println("\n=== ESTADO FINAL DAS THREADS ===");
-        for (Thread thread : threads) {
-            System.out.println("Thread " + thread.getName() + " finalizou em estado: " + thread.getState());
-        }
+        monitorExecutor.shutdownNow();
+        executorService.shutdown();
 
-        System.out.println("\n=== MISSÃO COOPERATIVA FINALIZADA ===");
-        System.out.println("Os exploradores principais concluíram suas tarefas com acesso controlado por semáforo.");
+        // Consolidação paralela dos pontos com Fork/Join.
+        ForkJoinPool forkJoinPool = new ForkJoinPool();
+        SomaPontos tarefaDeSoma = new SomaPontos(pontos, 0, pontos.length);
+        double somaTotal = forkJoinPool.invoke(tarefaDeSoma);
+        forkJoinPool.shutdown();
+
+        System.out.println("\nSoma total dos pontos: " + somaTotal);
+        System.out.println("\n=== MISSÃO MESTRE FINALIZADA ===");
+        System.out.println("A expedição consolidou seus resultados com paralelismo avançado.");
     }
 }
-

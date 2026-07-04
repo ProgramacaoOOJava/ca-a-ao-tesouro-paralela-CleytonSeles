@@ -1,27 +1,22 @@
-import java.util.concurrent.Semaphore;
-
 /**
  * Classe abstrata que representa um explorador na Caça ao Tesouro Paralela.
- * Define a estrutura básica para diferentes tipos de exploradores do nível Aventureiro.
+ * Define a estrutura básica para diferentes tipos de exploradores do nível Mestre.
  */
 public abstract class Explorador {
     // Nome do explorador.
     private final String nome;
 
-    // Especialidade do explorador, como Rápido ou Cuidadoso.
+    // Especialidade do explorador, como Rastreador ou Saqueador.
     private final String especialidade;
 
     // Nível de experiência do explorador.
     private final int nivel;
 
-    // Prioridade da thread associada ao explorador.
-    private final int prioridade;
+    // Energia disponível para cumprir a missão.
+    private final int energia;
 
-    // Tarefa imutável compartilhada com segurança entre threads.
-    private final Tarefa tarefa;
-
-    // Semáforo compartilhado que limita o acesso simultâneo à região crítica.
-    private final Semaphore semaphore;
+    // Missão imutável compartilhada com segurança entre tarefas concorrentes.
+    private final Missao missao;
 
     /**
      * Construtor que inicializa todos os atributos do explorador.
@@ -29,24 +24,22 @@ public abstract class Explorador {
      * @param nome nome do explorador
      * @param especialidade especialidade do explorador
      * @param nivel nível do explorador
-     * @param prioridade prioridade da thread associada
-     * @param tarefa tarefa imutável atribuída ao explorador
-     * @param semaphore semáforo compartilhado entre os exploradores
+     * @param energia energia disponível para a missão
+     * @param missao missão imutável atribuída ao explorador
      */
-    public Explorador(String nome, String especialidade, int nivel, int prioridade, Tarefa tarefa, Semaphore semaphore) {
+    public Explorador(String nome, String especialidade, int nivel, int energia, Missao missao) {
         this.nome = nome;
         this.especialidade = especialidade;
         this.nivel = nivel;
-        this.prioridade = prioridade;
-        this.tarefa = tarefa;
-        this.semaphore = semaphore;
+        this.energia = energia;
+        this.missao = missao;
     }
 
     /**
      * Método abstrato que deve ser implementado pelas subclasses.
-     * Define como cada tipo de explorador executa sua tarefa.
+     * Define como cada tipo de explorador executa sua missão e retorna a pontuação obtida.
      */
-    public abstract void executarTarefa();
+    public abstract Double executarMissao();
 
     /**
      * Exibe o status completo do explorador com formatação clara.
@@ -55,11 +48,11 @@ public abstract class Explorador {
         System.out.println("Nome: " + nome);
         System.out.println("Especialidade: " + especialidade);
         System.out.println("Nível: " + nivel);
-        System.out.println("Prioridade: " + prioridade);
+        System.out.println("Energia: " + energia);
         System.out.println(
-            "Tarefa: " + tarefa.getDescricao() +
-            " | Local: " + tarefa.getLocal() +
-            " | Dificuldade: " + tarefa.getDificuldade()
+            "Missão: " + missao.getDescricao() +
+            " | Local: " + missao.getLocal() +
+            " | Dificuldade: " + missao.getDificuldade()
         );
     }
 
@@ -76,16 +69,12 @@ public abstract class Explorador {
         return nivel;
     }
 
-    public int getPrioridade() {
-        return prioridade;
+    public int getEnergia() {
+        return energia;
     }
 
-    public Tarefa getTarefa() {
-        return tarefa;
-    }
-
-    public Semaphore getSemaphore() {
-        return semaphore;
+    public Missao getMissao() {
+        return missao;
     }
 }
 
